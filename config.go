@@ -10,4 +10,10 @@ package main
 var storagePath = "/var/lib/curier/uploads/"
 
 // URL base path that will prefix all download links
-var urlBasePath = "https://myapp.example.com"
+var urlBasePath = "http://localhost"
+
+// Network address to bind to - default 127.0.0.1
+var host = "127.0.0.1"
+
+// Port to listen on - default 8080
+var port = "8080"

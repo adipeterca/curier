@@ -16,16 +16,30 @@ func main() {
 		urlBasePath = envVar
 	}
 
+	if envVar := os.Getenv("CURIER_HOST"); envVar != "" {
+		host = envVar
+	}
+
+	if envVar := os.Getenv("CURIER_PORT"); envVar != "" {
+		port = envVar
+	}
+
 	fmt.Printf("storagePath : %s\n", storagePath)
 	fmt.Printf("urlBasePath : %s\n", urlBasePath)
+	fmt.Printf("host : %s\n", host)
+	fmt.Printf("port : %s\n", port)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /upload", uploadHandler)
+	mux.HandleFunc("GET /", rootHandler)
 	mux.HandleFunc("GET /download/{id}", downloadHandler)
+	mux.HandleFunc("GET /share/{id}", shareHandler)
+	mux.HandleFunc("GET /static/style.css", cssHandler)
+	mux.HandleFunc("POST /upload", uploadHandler)
 
-	fmt.Printf("Starting and listening on http://127.0.0.1:8080 ...\n")
+	var listenAddress = fmt.Sprintf("%s:%s", host, port)
+	fmt.Printf("Starting and listening on http://%s ...\n", listenAddress)
 
-	err := http.ListenAndServe("127.0.0.1:8080", mux)
+	err := http.ListenAndServe(listenAddress, mux)
 	if err != nil {
 		fmt.Printf("ERROR: server failed at startup: %s\n", err)
 	}

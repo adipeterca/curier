@@ -7,3 +7,8 @@ type FileMeta struct {
 	UploadedAt       time.Time `json:"uploaded_at"`
 	UploaderIP       string    `json:"uploader_ip"`
 }
+
+type ShareData struct {
+	FileMeta
+	ID string
+}

@@ -5,12 +5,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "static/index.html")
+}
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
@@ -20,6 +25,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid file upload", http.StatusBadRequest)
 		return
 	}
+
+	defer file.Close()
 
 	fileName := filepath.Base(header.Filename)
 	if fileName == "." || fileName == "" {
@@ -35,7 +42,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	bytes := make([]byte, 16)
 	_, err = rand.Read(bytes)
 	if err != nil {
-		fmt.Printf("ERROR: could not generate ID: %s\n", err)
+		fmt.Printf("ERROR: could not generate ID, reason: %s\n", err)
 		http.Error(w, "Sorry, I did my best :(", http.StatusInternalServerError)
 		return
 	}
@@ -64,6 +71,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	filePath := filepath.Join(storagePath, id)
 	dst, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+
 	if err != nil {
 		fmt.Printf("ERROR: could not create %s on disk: %s\n", filePath, err)
 		http.Error(w, "Could not save file", http.StatusInternalServerError)
@@ -71,7 +79,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer dst.Close()
-	defer file.Close()
 
 	_, err = io.Copy(dst, file)
 	if err != nil {
@@ -87,46 +94,98 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, `{"url": "%s/download/%s"}`, urlBasePath, id)
+	fmt.Fprintf(w, `{"url": "%s:%s/share/%s"}`, host, port, id)
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	id := r.PathValue("id")
-	id = filepath.Base(id) // Simple check against path traversal
-	if len(id) != 32 {
-		fmt.Printf("WARNING: invalid ID %s\n", id)
+	err := validateId(id)
+	if err != nil {
+		fmt.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
 		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	meta, err := readMeta(id)
+	if err != nil {
+		fmt.Printf("ERROR: reading meta file for %s: %s\n", id, err)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 
 	filePath := filepath.Join(storagePath, id)
 
-	_, err := os.Stat(filePath)
-	if os.IsNotExist(err) {
-		fmt.Printf("INFO: did not find file %s\n", filePath)
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-
-	metaFilePath := filepath.Join(storagePath, id+".meta")
-	metaBytes, err := os.ReadFile(metaFilePath)
-	if err != nil {
-		fmt.Printf("ERROR: could not read file %s: %s\n", metaFilePath, err)
-		http.Error(w, "Sorry, I did my best :(", http.StatusInternalServerError)
-		return
-	}
-
-	var meta FileMeta
-	err = json.Unmarshal(metaBytes, &meta)
-	if err != nil {
-		fmt.Printf("ERROR: could not unmarshal file %s: %s\n", metaFilePath, err)
-		http.Error(w, "Sorry, I did my best :(", http.StatusInternalServerError)
-		return
-	}
-
 	fmt.Printf("INFO: Serving file %s uploaded by %s to %s\n", meta.OriginalFilename, meta.UploaderIP, r.RemoteAddr)
 
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+meta.OriginalFilename+"\"")
 	http.ServeFile(w, r, filePath)
+}
+
+func shareHandler(w http.ResponseWriter, r *http.Request) {
+
+	id := r.PathValue("id")
+	err := validateId(id)
+	if err != nil {
+		fmt.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	meta, err := readMeta(id)
+	if err != nil {
+		fmt.Printf("ERROR: reading meta file for %s, reason: %s\n", id, err)
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	shareData := ShareData{
+		FileMeta: *meta,
+		ID:       id,
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	tmpl, err := template.ParseFiles("templates/share.html")
+	if err != nil {
+		fmt.Printf("ERROR: could not parse template: %s\n", err)
+		http.Error(w, "Sorry, I did my best :(", http.StatusInternalServerError)
+		return
+	}
+
+	if err = tmpl.Execute(w, shareData); err != nil {
+		fmt.Printf("ERROR: could not execute template: %s\n", err)
+		// We don't return an error to the client, as partial output may already
+		// have been written.
+	}
+}
+
+func cssHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "static/styles.css")
+}
+
+// --- Helper functions ---
+
+func validateId(id string) error {
+
+	id = filepath.Base(id) // Simple check against path traversal
+	if len(id) != 32 {
+		return fmt.Errorf("ID length is not 32")
+	}
+
+	return nil
+}
+
+func readMeta(id string) (*FileMeta, error) {
+
+	metaFilePath := filepath.Join(storagePath, id+".meta")
+
+	metaBytes, err := os.ReadFile(metaFilePath)
+	if err != nil {
+		return nil, err
+	}
+	var meta FileMeta
+	if err = json.Unmarshal(metaBytes, &meta); err != nil {
+		return nil, err
+	}
+	return &meta, nil
 }
