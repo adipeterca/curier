@@ -3,3 +3,6 @@ uploads
 
 # Compiled binaries
 bin
+
+# Other files
+todo.md

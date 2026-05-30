@@ -1,5 +1,13 @@
 package main
 
+import "embed"
+
+//go:embed static
+var staticFiles embed.FS
+
+//go:embed templates
+var templateFiles embed.FS
+
 // All variables can be overwritten by using environment variables.
 // All env vars need to start with `CURIER_` followed by the variable name in uppercase, each word separated with an underscore.
 //
