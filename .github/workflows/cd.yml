@@ -14,6 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify tag is on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor ${{ github.sha }} origin/main || (echo "Tag must be on main" && exit 1)
+
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
