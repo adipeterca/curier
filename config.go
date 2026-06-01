@@ -14,6 +14,8 @@ var templateFiles embed.FS
 // Example:
 // storagePath -> CURIER_STORAGE_PATH
 
+// -- Private variables ---
+
 // Where to save the uploaded files
 var storagePath = "/var/lib/curier/uploads/"
 
@@ -25,3 +27,31 @@ var host = "127.0.0.1"
 
 // Port to listen on - default 8080
 var port = "8080"
+
+// --- Public variables ---
+//
+// This information can be queried by a GET request to the `/config/` endpoint.
+
+// Max accepted file size for upload - default 20 GB
+var maxFileSize int64 = 20 * 1024 * 1024 * 1024
+
+// What file types (based on extension) can be uploaded.
+// Env var looks like CURIER_ALLOWED_FILE_EXTENSIONS=jpg;jpeg;md
+//
+// DO NOT add a '.' for each extension - it will be added automatically.
+var allowedFileExtensions = map[string]bool{
+	".jpg":    true,
+	".jpeg":   true,
+	".webm":   true,
+	".mkv":    true,
+	".mp4":    true,
+	".mp3":    true,
+	".avi":    true,
+	".png":    true,
+	".pdf":    true,
+	".zip":    true,
+	".rar":    true,
+	".tar.gz": true,
+	".txt":    true,
+	".md":     true,
+}

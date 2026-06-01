@@ -120,6 +120,12 @@ button:active, .btn:active {
     transform: translate(2px, 2px);
 }
 
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 /* Muted label */
 .label {
     font-size: 0.75rem;

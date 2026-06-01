@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -17,43 +19,62 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
 		fmt.Printf("ERROR: static/index.html not found in embedded files")
-		http.Error(w, "Sorry :(", http.StatusInternalServerError)
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.Write(data)
 }
 
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	keys := make([]string, 0, len(allowedFileExtensions))
+	for ext := range allowedFileExtensions {
+		keys = append(keys, ext)
+	}
+
+	config := Config{
+		MaxFileSize:           maxFileSize,
+		AllowedFileExtensions: keys,
+	}
+
+	configBytes, err := json.Marshal(config)
+	if err != nil {
+		fmt.Printf("ERROR: failed to marshal config JSON")
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(configBytes)
+}
+
+// uploadHandler saves the uploaded files to disk, if it passes the verifications.
+// It will only return simple errors (JSON based)
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
 
 	if err != nil {
-		fmt.Printf("WARNING: invalid file upload: %s\n", err)
-		http.Error(w, "invalid file upload", http.StatusBadRequest)
+		fmt.Printf("WARNING: no file provided: %s\n", err)
+		http.Error(w, "no file provided", http.StatusBadRequest)
 		return
 	}
 
 	defer file.Close()
 
-	fileName := filepath.Base(header.Filename)
-	if fileName == "." || fileName == "" {
-		fmt.Printf("WARNING: invalid filename provided: %s\n", err)
-		http.Error(w, "invalid filename", http.StatusBadRequest)
+	fileName, err := validateFile(header)
+	if err != nil {
+		fmt.Printf("WARNING: problem with file upload, reason: %s\n", err)
+		http.Error(w, "invalid file", http.StatusBadRequest)
 		return
 	}
-
-	// Could be made to only accept specific files, based on their magic bytes
-	// some ideas: ZIP, RAR, PNG, JPG, JPEG, text files (how do I recognise these - maybe by parsing the first 4 bytes?)
 
 	// Create a unique filename from 128 random bits -> 32 char string
-	bytes := make([]byte, 16)
-	_, err = rand.Read(bytes)
+	id, err := generateId()
 	if err != nil {
 		fmt.Printf("ERROR: could not generate ID, reason: %s\n", err)
-		http.Error(w, "Sorry, I did my best :(", http.StatusInternalServerError)
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
-	id := hex.EncodeToString(bytes)
 
 	meta := FileMeta{
 		OriginalFilename: fileName,
@@ -64,7 +85,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	metaBytes, err := json.Marshal(meta)
 	if err != nil {
 		fmt.Printf("ERROR: failed to marshal JSON: %s\n", err)
-		http.Error(w, "Sorry, I did my best :(", http.StatusInternalServerError)
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
 
@@ -72,7 +93,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	err = os.WriteFile(metaFilePath, metaBytes, 0644)
 	if err != nil {
 		fmt.Printf("ERROR: could not write %s to disk: %s\n", metaFilePath, err)
-		http.Error(w, "Could not save file", http.StatusInternalServerError)
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
 
@@ -81,7 +102,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		fmt.Printf("ERROR: could not create %s on disk: %s\n", filePath, err)
-		http.Error(w, "Could not save file", http.StatusInternalServerError)
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
 
@@ -92,7 +113,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		os.Remove(metaFilePath)
 
 		fmt.Printf("ERROR: could not write %s to disk: %s\n", filePath, err)
-		http.Error(w, "Could not write file", http.StatusInternalServerError)
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
 
@@ -110,14 +131,14 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	err := validateId(id)
 	if err != nil {
 		fmt.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		serveError(w, http.StatusNotFound)
 		return
 	}
 
 	meta, err := readMeta(id)
 	if err != nil {
 		fmt.Printf("ERROR: reading meta file for %s: %s\n", id, err)
-		http.Error(w, "not found", http.StatusNotFound)
+		serveError(w, http.StatusNotFound)
 		return
 	}
 
@@ -135,17 +156,18 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 	err := validateId(id)
 	if err != nil {
 		fmt.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		// We return 404-NotFound because this is a browser-client facing application, not a pure API.
+		// Thus, it makes more sense for the client to get a 404 instead of a 400-BadRequest
+		serveError(w, http.StatusNotFound)
 		return
 	}
 
 	meta, err := readMeta(id)
 	if err != nil {
 		fmt.Printf("ERROR: reading meta file for %s, reason: %s\n", id, err)
-		http.Error(w, "not found", http.StatusNotFound)
+		serveError(w, http.StatusNotFound)
 		return
 	}
-
 	shareData := ShareData{
 		FileMeta: *meta,
 		ID:       id,
@@ -156,7 +178,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		fmt.Printf("ERROR: could not parse template: %s\n", err)
-		http.Error(w, "Sorry, I did my best :(", http.StatusInternalServerError)
+		serveError(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -171,7 +193,7 @@ func cssHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := staticFiles.ReadFile("static/styles.css")
 	if err != nil {
 		fmt.Printf("ERROR: static/styles.css not found in embedded files")
-		http.Error(w, "Sorry :(", http.StatusInternalServerError)
+		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
@@ -187,7 +209,44 @@ func validateId(id string) error {
 		return fmt.Errorf("ID length is not 32")
 	}
 
+	for _, ch := range id {
+		if !(ch >= 'a' && ch <= 'f' || ch >= '0' && ch <= '9') {
+			return fmt.Errorf("ID is not a HEX encoded string")
+		}
+	}
+
 	return nil
+}
+
+func validateFile(header *multipart.FileHeader) (string, error) {
+	fileName := filepath.Base(header.Filename)
+	if fileName == "." || fileName == "" {
+		return "", fmt.Errorf("Filename is either empty or '.'")
+	}
+
+	if header.Size > maxFileSize {
+		return "", fmt.Errorf("File size is bigger than allowed")
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if !allowedFileExtensions[ext] {
+		return "", fmt.Errorf("file extension %s is not allowed", ext)
+	}
+
+	return fileName, nil
+}
+
+func generateId() (string, error) {
+	bytes := make([]byte, 16)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		// Docs say: "It never returns an error, and always fills b entirely."
+		// If you get here, I dunno what to do
+		return "", err
+	}
+	id := hex.EncodeToString(bytes)
+
+	return id, nil
 }
 
 func readMeta(id string) (*FileMeta, error) {
@@ -203,4 +262,28 @@ func readMeta(id string) (*FileMeta, error) {
 		return nil, err
 	}
 	return &meta, nil
+}
+
+func serveError(w http.ResponseWriter, code int) {
+	var file string
+	switch code {
+	case http.StatusNotFound:
+		file = "static/404.html"
+	case http.StatusInternalServerError:
+		file = "static/500.html"
+	default:
+		file = "static/404.html"
+	}
+
+	content, err := staticFiles.ReadFile(file)
+	if err != nil {
+		// fallback if even the error page is missing
+		fmt.Printf("CRITICAL: Missing error page for %d (are you sure the file was embedded?), reason: %s\n", code, err)
+		http.Error(w, "Something really broke me :(", code)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(code)
+	w.Write(content)
 }
