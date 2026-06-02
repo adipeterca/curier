@@ -1,22 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Curier 🚚</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <br>
-    <h1>Max file size: 10 MB</h1>
+    <h1>Max file size: <span id="maxFileSize">...</span></h1>
     <br>
     <input type="file" id="fileInput">
     <br>
     <br>
-    <button onclick="upload()">Upload</button>
+    <button id="uploadBtn" onclick="upload()" disabled>Upload</button>
     <p id="result"></p>
 
     <script>
+        let config = null
+
+        document.getElementById("fileInput").addEventListener("change", () => {
+            const file = document.getElementById("fileInput").files[0]
+            document.getElementById("uploadBtn").disabled = !file
+        })
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const response = await fetch("/config")
+            config = await response.json()
+
+            let unit, displaySize
+            if (config.max_file_size < 1024) {
+                unit = "bytes"
+                displaySize = config.max_file_size
+            } else if (config.max_file_size < 1024 * 1024) {
+                unit = "KB"
+                displaySize = config.max_file_size / 1024
+            } else if (config.max_file_size < 1024 * 1024 * 1024) {
+                unit = "MB"
+                displaySize = config.max_file_size / 1024 / 1024
+            } else {
+                unit = "GB"
+                displaySize = config.max_file_size / 1024 / 1024 / 1024
+            }
+
+            document.getElementById("maxFileSize").textContent = displaySize.toFixed(1) + " " + unit
+        })
+
         async function upload() {
             const file = document.getElementById("fileInput").files[0]
+
+            if (!file) {
+                alert("Please select a file")
+                return
+            }
+
+            if (config && file.size > config.max_file_size) {
+                alert("File too large")
+                return
+            }
+
+            const ext = "." + file.name.split(".").pop().toLowerCase()
+            if (config && !config.allowed_extensions.includes(ext)) {
+                alert("File type not allowed")
+                return
+            }
+
             const formData = new FormData()
             formData.append("file", file)
 

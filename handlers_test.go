@@ -111,8 +111,8 @@ func TestDownloadInvalidID(t *testing.T) {
 
 	downloadHandler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
 	}
 }
 
