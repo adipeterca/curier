@@ -6,3 +6,4 @@ bin
 
 # Other files
 todo.md
+build-docker.sh

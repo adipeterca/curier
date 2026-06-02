@@ -1,4 +1,4 @@
-FROM golang:1.24 AS builder
+FROM golang:1.26 AS builder
 
 WORKDIR /app
 
@@ -7,14 +7,22 @@ WORKDIR /app
 COPY go.mod ./
 RUN go mod download
 
-COPY . .
+COPY static/ ./static/
+COPY templates/ ./templates/
+COPY *.go ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o curier .
 
 FROM scratch
 
+WORKDIR /
+
+ENV CURIER_HOST="0.0.0.0"
+ENV CURIER_PORT="39800"
+ENV CURIER_STORAGE_PATH="/uploads/" 
+
 COPY --from=builder /app/curier /curier
 
-EXPOSE 8080
+EXPOSE 39800
 
 ENTRYPOINT ["/curier"]

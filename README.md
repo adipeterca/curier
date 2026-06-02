@@ -9,7 +9,7 @@ A small Go server for sharing files across the internet.
 You can download the Dockerfile and build the image yourself, or simply pull it from the repo:
 ```bash
 docker pull ghcr.io/adipeterca/curier:latest
-docker run -p 8080:8080 ghcr.io/adipeterca/curier:latest
+docker run -p 39800:39800 ghcr.io/adipeterca/curier:latest
 ```
 
 ### Linux environment
@@ -26,6 +26,9 @@ You can download a precompiled binary from the [Release](https://github.com/adip
 ## Configuration
 
 You can configure some aspects of the service via environment variables prefixed with **CURIER_**.  
+
+_If you're using Docker, either use a `.env` file or the `-e` argument from the `docker run` command._
+
 Some information will be exposed via the `/config/` endpoint for better UX.  
 For default values, check [config.go](https://github.com/adipeterca/curier/blob/main/config.go).  
 
