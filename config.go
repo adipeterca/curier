@@ -17,16 +17,16 @@ var templateFiles embed.FS
 // -- Private variables ---
 
 // Where to save the uploaded files
-var storagePath = "/var/lib/curier/uploads/"
+var storagePath = "uploads/"
 
 // URL base path that will prefix all download links
 var urlBasePath = "http://localhost"
 
-// Network address to bind to - default 127.0.0.1
-var host = "127.0.0.1"
+// Network address to bind to - default 0.0.0.0
+var host = "0.0.0.0"
 
-// Port to listen on - default 8080
-var port = "8080"
+// Port to listen on - default 39800
+var port = "39800"
 
 // --- Public variables ---
 //
