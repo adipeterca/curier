@@ -2,7 +2,9 @@ FROM golang:1.24 AS builder
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+# No additional dependencies, no go.sum
+# COPY go.mod go.sum ./
+COPY go.mod ./
 RUN go mod download
 
 COPY . .
