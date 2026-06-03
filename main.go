@@ -76,9 +76,8 @@ func parseEnvVars() {
 	log.Printf("maxFileSize : %d bytes\n", maxFileSize)
 	log.Printf("allowedFileExtensions: ")
 	for ext := range allowedFileExtensions {
-		log.Printf("%s ", ext)
+		fmt.Printf("\t\t%s ", ext)
 	}
-	log.Printf("\n\n")
 }
 
 func parseFS() {
