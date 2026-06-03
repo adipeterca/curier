@@ -122,7 +122,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, `{"url": "%s/share/%s"}`, urlBasePath, id)
+	fmt.Fprintf(w, `{"path": "/share/%s"}`, id)
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {

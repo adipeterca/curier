@@ -67,9 +67,23 @@
             const formData = new FormData()
             formData.append("file", file)
 
-            const response = await fetch("/upload", { method: "POST", body: formData })
-            const data = await response.json()
-            document.getElementById("result").textContent = data.url
+            try {
+                const response = await fetch("/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    document.getElementById("result").textContent = "Upload failed";
+                    return;
+                }
+
+                const data = await response.json();
+
+                document.getElementById("result").textContent = window.location.origin + data.path;
+            } catch (err) {
+                document.getElementById("result").textContent = "Upload failed";
+            }
         }
     </script>
 </body>
