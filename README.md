@@ -33,7 +33,6 @@ For default values, check [config.go](https://github.com/adipeterca/curier/blob/
 | Variable name | Description |
 |--|--|
 |`CURIER_STORAGE_PATH`|Absolute path where the file uploads will be stored on disk|
-|`CURIER_BASE_URL`|Default prefix for the `/download/{id}` URL|
 |`CURIER_HOST`|Network address to bind to|
 |`CURIER_PORT`|Port to use (also affects the port used inside the container)|
 |`CURIER_MAX_FILE_SIZE`|Maximum allowed size for each file upload|

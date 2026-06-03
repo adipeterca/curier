@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"html/template"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 func main() {
 
 	parseEnvVars()
+	parseFS()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", rootHandler)
@@ -21,21 +24,17 @@ func main() {
 	mux.HandleFunc("POST /upload", uploadHandler)
 
 	var listenAddress = fmt.Sprintf("%s:%s", host, port)
-	fmt.Printf("Starting and listening on http://%s ...\n", listenAddress)
+	log.Printf("Starting and listening on http://%s ...\n", listenAddress)
 
 	err := http.ListenAndServe(listenAddress, mux)
 	if err != nil {
-		fmt.Printf("ERROR: server failed at startup: %s\n", err)
+		log.Printf("ERROR: server failed at startup: %s\n", err)
 	}
 }
 
 func parseEnvVars() {
 	if envVar := os.Getenv("CURIER_STORAGE_PATH"); envVar != "" {
 		storagePath = envVar
-	}
-
-	if envVar := os.Getenv("CURIER_URL_BASE_PATH"); envVar != "" {
-		urlBasePath = envVar
 	}
 
 	if envVar := os.Getenv("CURIER_HOST"); envVar != "" {
@@ -50,7 +49,7 @@ func parseEnvVars() {
 		var err error
 		maxFileSize, err = strconv.ParseInt(envVar, 10, 64)
 		if err != nil {
-			fmt.Printf("CRITICAL: failed to parse maxFileSize, reason: %s\n", err)
+			log.Printf("CRITICAL: failed to parse maxFileSize, reason: %s\n", err)
 			os.Exit(1)
 		}
 	}
@@ -65,20 +64,28 @@ func parseEnvVars() {
 		}
 
 		if len(allowedFileExtensions) == 0 {
-			fmt.Printf("CRITICAL: parsing allowedFileExtensions did not work. Exiting...\n")
+			log.Printf("CRITICAL: parsing allowedFileExtensions did not work. Exiting...\n")
 			os.Exit(1)
 		}
 	}
 
-	fmt.Printf("\n\n  --- Environment variables ---\n")
-	fmt.Printf("storagePath : %s\n", storagePath)
-	fmt.Printf("urlBasePath : %s\n", urlBasePath)
-	fmt.Printf("host : %s\n", host)
-	fmt.Printf("port : %s\n", port)
-	fmt.Printf("maxFileSize : %d bytes\n", maxFileSize)
-	fmt.Printf("allowedFileExtensions: ")
+	log.Printf("\n\n  --- Environment variables ---\n")
+	log.Printf("storagePath : %s\n", storagePath)
+	log.Printf("host : %s\n", host)
+	log.Printf("port : %s\n", port)
+	log.Printf("maxFileSize : %d bytes\n", maxFileSize)
+	log.Printf("allowedFileExtensions: ")
 	for ext := range allowedFileExtensions {
-		fmt.Printf("%s ", ext)
+		log.Printf("%s ", ext)
 	}
-	fmt.Printf("\n\n")
+	log.Printf("\n\n")
+}
+
+func parseFS() {
+	var err error
+	shareTemplate, err = template.ParseFS(templateFiles, "templates/share.html")
+	if err != nil {
+		log.Printf("CRITICAL: could not parse share template: %s\n", err)
+		os.Exit(1)
+	}
 }

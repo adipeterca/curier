@@ -1,12 +1,17 @@
 package main
 
-import "embed"
+import (
+	"embed"
+	"html/template"
+)
 
 //go:embed static
 var staticFiles embed.FS
 
 //go:embed templates
 var templateFiles embed.FS
+
+var shareTemplate *template.Template
 
 // All variables can be overwritten by using environment variables.
 // All env vars need to start with `CURIER_` followed by the variable name in uppercase, each word separated with an underscore.
@@ -18,9 +23,6 @@ var templateFiles embed.FS
 
 // Where to save the uploaded files
 var storagePath = "uploads/"
-
-// URL base path that will prefix all download links
-var urlBasePath = "http://localhost"
 
 // Network address to bind to - default 0.0.0.0
 var host = "0.0.0.0"

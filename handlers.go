@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -18,7 +18,7 @@ import (
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
-		fmt.Printf("ERROR: static/index.html not found in embedded files")
+		log.Printf("ERROR: static/index.html not found in embedded files")
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -39,7 +39,7 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 
 	configBytes, err := json.Marshal(config)
 	if err != nil {
-		fmt.Printf("ERROR: failed to marshal config JSON")
+		log.Printf("ERROR: failed to marshal config JSON")
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -51,10 +51,21 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 // uploadHandler saves the uploaded files to disk, if it passes the verifications.
 // It will only return simple errors (JSON based)
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxFileSize)
+
+	// A memory buffer limit (at most 32MB) - anything over it will be written to disk, up to maxFileSize bytes.
+	var maxRAMSize int64 = min(maxFileSize, 32*1024*1024)
+	if err := r.ParseMultipartForm(maxRAMSize); err != nil {
+		log.Printf("WARNING: could not parse multipart form: %s\n", err)
+		http.Error(w, "file too big", http.StatusBadRequest)
+		return
+	}
+
 	file, header, err := r.FormFile("file")
 
 	if err != nil {
-		fmt.Printf("WARNING: no file provided: %s\n", err)
+		log.Printf("WARNING: no file provided: %s\n", err)
 		http.Error(w, "no file provided", http.StatusBadRequest)
 		return
 	}
@@ -63,7 +74,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	fileName, err := validateFile(header)
 	if err != nil {
-		fmt.Printf("WARNING: problem with file upload, reason: %s\n", err)
+		log.Printf("WARNING: problem with file upload, reason: %s\n", err)
 		http.Error(w, "invalid file", http.StatusBadRequest)
 		return
 	}
@@ -71,7 +82,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Create a unique filename from 128 random bits -> 32 char string
 	id, err := generateId()
 	if err != nil {
-		fmt.Printf("ERROR: could not generate ID, reason: %s\n", err)
+		log.Printf("ERROR: could not generate ID, reason: %s\n", err)
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -84,7 +95,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	metaBytes, err := json.Marshal(meta)
 	if err != nil {
-		fmt.Printf("ERROR: failed to marshal JSON: %s\n", err)
+		log.Printf("ERROR: failed to marshal JSON: %s\n", err)
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -92,7 +103,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	metaFilePath := filepath.Join(storagePath, id+".meta")
 	err = os.WriteFile(metaFilePath, metaBytes, 0644)
 	if err != nil {
-		fmt.Printf("ERROR: could not write %s to disk: %s\n", metaFilePath, err)
+		log.Printf("ERROR: could not write %s to disk: %s\n", metaFilePath, err)
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -101,7 +112,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	dst, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
 
 	if err != nil {
-		fmt.Printf("ERROR: could not create %s on disk: %s\n", filePath, err)
+		log.Printf("ERROR: could not create %s on disk: %s\n", filePath, err)
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -112,13 +123,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		os.Remove(metaFilePath)
 
-		fmt.Printf("ERROR: could not write %s to disk: %s\n", filePath, err)
+		log.Printf("ERROR: could not write %s to disk: %s\n", filePath, err)
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
 
 	// File was uploaded successfully
-	fmt.Printf("SUCCESS: file %s was saved to disk %s\n", fileName, filePath)
+	log.Printf("SUCCESS: file %s was saved to disk %s\n", fileName, filePath)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -130,21 +141,21 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	err := validateId(id)
 	if err != nil {
-		fmt.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
+		log.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
 		serveError(w, http.StatusNotFound)
 		return
 	}
 
 	meta, err := readMeta(id)
 	if err != nil {
-		fmt.Printf("ERROR: reading meta file for %s: %s\n", id, err)
+		log.Printf("ERROR: reading meta file for %s: %s\n", id, err)
 		serveError(w, http.StatusNotFound)
 		return
 	}
 
 	filePath := filepath.Join(storagePath, id)
 
-	fmt.Printf("INFO: Serving file %s uploaded by %s to %s\n", meta.OriginalFilename, meta.UploaderIP, r.RemoteAddr)
+	log.Printf("INFO: Serving file %s uploaded by %s to %s\n", meta.OriginalFilename, meta.UploaderIP, r.RemoteAddr)
 
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+meta.OriginalFilename+"\"")
 	http.ServeFile(w, r, filePath)
@@ -155,7 +166,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	err := validateId(id)
 	if err != nil {
-		fmt.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
+		log.Printf("WARNING: invalid ID %s, reason: %s\n", id, err)
 		// We return 404-NotFound because this is a browser-client facing application, not a pure API.
 		// Thus, it makes more sense for the client to get a 404 instead of a 400-BadRequest
 		serveError(w, http.StatusNotFound)
@@ -164,7 +175,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 
 	meta, err := readMeta(id)
 	if err != nil {
-		fmt.Printf("ERROR: reading meta file for %s, reason: %s\n", id, err)
+		log.Printf("ERROR: reading meta file for %s, reason: %s\n", id, err)
 		serveError(w, http.StatusNotFound)
 		return
 	}
@@ -174,16 +185,9 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	tmpl, err := template.ParseFS(templateFiles, "templates/share.html")
 
-	if err != nil {
-		fmt.Printf("ERROR: could not parse template: %s\n", err)
-		serveError(w, http.StatusInternalServerError)
-		return
-	}
-
-	if err = tmpl.Execute(w, shareData); err != nil {
-		fmt.Printf("ERROR: could not execute template: %s\n", err)
+	if err = shareTemplate.Execute(w, shareData); err != nil {
+		log.Printf("ERROR: could not execute template: %s\n", err)
 		// We don't return an error to the client, as partial output may already
 		// have been written.
 	}
@@ -192,7 +196,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 func cssHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := staticFiles.ReadFile("static/styles.css")
 	if err != nil {
-		fmt.Printf("ERROR: static/styles.css not found in embedded files")
+		log.Printf("ERROR: static/styles.css not found in embedded files")
 		http.Error(w, "Something did not work. Contact the administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -278,7 +282,7 @@ func serveError(w http.ResponseWriter, code int) {
 	content, err := staticFiles.ReadFile(file)
 	if err != nil {
 		// fallback if even the error page is missing
-		fmt.Printf("CRITICAL: Missing error page for %d (are you sure the file was embedded?), reason: %s\n", code, err)
+		log.Printf("CRITICAL: Missing error page for %d (are you sure the file was embedded?), reason: %s\n", code, err)
 		http.Error(w, "Something really broke me :(", code)
 		return
 	}
