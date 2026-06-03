@@ -4,7 +4,7 @@ A small Go server for sharing files across the internet.
 
 ## How to setup
 
-### Docker environment
+### Docker
 
 You can download the Dockerfile and build the image yourself, or simply pull it from the repo:
 ```bash
@@ -12,13 +12,11 @@ docker pull ghcr.io/adipeterca/curier:latest
 docker run -p 39800:39800 ghcr.io/adipeterca/curier:latest
 ```
 
-### Linux environment
-
-**I strongly recommend using Docker, as it simplifies the configuration a lot**.
+### Linux
 
 If you want to use a precompiled binary, please refer to the [Release](https://github.com/adipeterca/curier/releases) section.
 
-### Windows environment
+### Windows
 
 Because not many servers run Windows, the support I can provide for this platform is limited.
 You can download a precompiled binary from the [Release](https://github.com/adipeterca/curier/releases) section or use a Docker container.
