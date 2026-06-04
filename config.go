@@ -30,6 +30,9 @@ var host = "0.0.0.0"
 // Port to listen on - default 39800
 var port = "39800"
 
+// How many hours (minimum 1) to hold the files on disk - default 12 hours
+var fileRetentionTime int64 = 12
+
 // --- Public variables ---
 //
 // This information can be queried by a GET request to the `/config/` endpoint.
