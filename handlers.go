@@ -87,10 +87,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	remoteAddr := getRemoteAddress(&r.Header)
 	meta := FileMeta{
 		OriginalFilename: fileName,
 		UploadedAt:       time.Now(),
-		UploaderIP:       r.RemoteAddr, // needs testing
+		UploaderIP:       remoteAddr,
 	}
 
 	metaBytes, err := json.Marshal(meta)
@@ -155,7 +156,8 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	filePath := filepath.Join(storagePath, id)
 
-	log.Printf("INFO: Serving file %s uploaded by %s to %s\n", meta.OriginalFilename, meta.UploaderIP, r.RemoteAddr)
+	remoteAddr := getRemoteAddress(&r.Header)
+	log.Printf("INFO: Serving file %s uploaded by %s to %s\n", meta.OriginalFilename, meta.UploaderIP, remoteAddr)
 
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+meta.OriginalFilename+"\"")
 	http.ServeFile(w, r, filePath)
@@ -266,6 +268,23 @@ func readMeta(id string) (*FileMeta, error) {
 		return nil, err
 	}
 	return &meta, nil
+}
+
+func getRemoteAddress(h *http.Header) string {
+
+	// Cloudflare proxying traffic
+	ip := h.Get("Cf-Connecting-Ip")
+	if ip != "" {
+		return ip
+	}
+
+	// Traffic coming from on-host reverse proxies like Caddy
+	ip = h.Get("X-Forwarded-For")
+	if ip != "" {
+		return ip
+	}
+
+	return ""
 }
 
 func serveError(w http.ResponseWriter, code int) {
