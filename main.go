@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"html/template"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 func main() {
 
 	parseEnvVars()
+	parseFS()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", rootHandler)
@@ -21,21 +24,21 @@ func main() {
 	mux.HandleFunc("POST /upload", uploadHandler)
 
 	var listenAddress = fmt.Sprintf("%s:%s", host, port)
-	fmt.Printf("Starting and listening on http://%s ...\n", listenAddress)
+	log.Printf("Starting and listening on http://%s ...\n", listenAddress)
+
+	startCleanup()
 
 	err := http.ListenAndServe(listenAddress, mux)
 	if err != nil {
-		fmt.Printf("ERROR: server failed at startup: %s\n", err)
+		log.Printf("ERROR: server failed at startup: %s\n", err)
 	}
 }
 
 func parseEnvVars() {
+	var err error
+
 	if envVar := os.Getenv("CURIER_STORAGE_PATH"); envVar != "" {
 		storagePath = envVar
-	}
-
-	if envVar := os.Getenv("CURIER_URL_BASE_PATH"); envVar != "" {
-		urlBasePath = envVar
 	}
 
 	if envVar := os.Getenv("CURIER_HOST"); envVar != "" {
@@ -46,11 +49,23 @@ func parseEnvVars() {
 		port = envVar
 	}
 
+	if envVar := os.Getenv("CURIER_FILE_RETENTION_TIME"); envVar != "" {
+		fileRetentionTime, err = strconv.ParseInt(envVar, 10, 64)
+		if err != nil {
+			log.Printf("CRITICAL: failed to parse fileRetentionTime, reason: %s\n", err)
+			os.Exit(1)
+		}
+		if fileRetentionTime < 1 {
+			log.Printf("WARNING: fileRetentionTime needs to be at least 1 hour - parsed value is %d\n", fileRetentionTime)
+			log.Printf("WARNING: fileRetentionTime set to 1 hour\n")
+			fileRetentionTime = 1
+		}
+	}
+
 	if envVar := os.Getenv("CURIER_MAX_FILE_SIZE"); envVar != "" {
-		var err error
 		maxFileSize, err = strconv.ParseInt(envVar, 10, 64)
 		if err != nil {
-			fmt.Printf("CRITICAL: failed to parse maxFileSize, reason: %s\n", err)
+			log.Printf("CRITICAL: failed to parse maxFileSize, reason: %s\n", err)
 			os.Exit(1)
 		}
 	}
@@ -65,20 +80,31 @@ func parseEnvVars() {
 		}
 
 		if len(allowedFileExtensions) == 0 {
-			fmt.Printf("CRITICAL: parsing allowedFileExtensions did not work. Exiting...\n")
+			log.Printf("CRITICAL: parsing allowedFileExtensions did not work. Exiting...\n")
 			os.Exit(1)
 		}
 	}
 
-	fmt.Printf("\n\n  --- Environment variables ---\n")
-	fmt.Printf("storagePath : %s\n", storagePath)
-	fmt.Printf("urlBasePath : %s\n", urlBasePath)
-	fmt.Printf("host : %s\n", host)
-	fmt.Printf("port : %s\n", port)
-	fmt.Printf("maxFileSize : %d bytes\n", maxFileSize)
-	fmt.Printf("allowedFileExtensions: ")
+	fullConfig := "\n\n  --- Environment variables ---\n"
+	fullConfig += fmt.Sprintf("storagePath : %s\n", storagePath)
+	fullConfig += fmt.Sprintf("host : %s\n", host)
+	fullConfig += fmt.Sprintf("port : %s\n", port)
+	fullConfig += fmt.Sprintf("fileRetentionTime : %d\n", fileRetentionTime)
+	fullConfig += fmt.Sprintf("maxFileSize : %d bytes\n", maxFileSize)
+	exts := ""
 	for ext := range allowedFileExtensions {
-		fmt.Printf("%s ", ext)
+		exts += fmt.Sprintf("\t\t\t%s\n", ext)
 	}
-	fmt.Printf("\n\n")
+	fullConfig += fmt.Sprintf("allowedFileExtensions:\n%s", exts)
+
+	log.Println(fullConfig)
+}
+
+func parseFS() {
+	var err error
+	shareTemplate, err = template.ParseFS(templateFiles, "templates/share.html")
+	if err != nil {
+		log.Printf("CRITICAL: could not parse share template: %s\n", err)
+		os.Exit(1)
+	}
 }

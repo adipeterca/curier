@@ -22,6 +22,7 @@ ENV CURIER_PORT="39800"
 ENV CURIER_STORAGE_PATH="/uploads/" 
 
 COPY --from=builder /app/curier /curier
+COPY --from=builder /tmp /tmp
 
 EXPOSE 39800
 

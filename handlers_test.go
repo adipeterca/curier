@@ -36,8 +36,8 @@ func TestUploadValidFile(t *testing.T) {
 
 	var response map[string]string
 	json.Unmarshal(w.Body.Bytes(), &response)
-	if response["url"] == "" {
-		t.Error("expected url in response, got empty string")
+	if response["path"] == "" {
+		t.Error("expected path in response, got empty string")
 	}
 }
 
@@ -148,7 +148,7 @@ func uploadTestFile(t *testing.T, filename, content string) string {
 
 	var response map[string]string
 	json.Unmarshal(w.Body.Bytes(), &response)
-	return response["url"]
+	return response["path"]
 }
 
 // extractID pulls the ID from a full download URL
