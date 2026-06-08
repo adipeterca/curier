@@ -4,23 +4,88 @@
     <meta charset="UTF-8">
     <title>Curier 🚚</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 1rem;
+        }
+
+        .file-label {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            display: inline-block;
+        }
+
+        .file-label:hover {
+            background: var(--btn-hover);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        #fileName {
+            color: #ffffff;
+            font-size: 0.8rem;
+            text-transform: none;
+        }
+
+        #result {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        #copyBtn {
+            display: none;
+        }
+
+        #maxFileSizeLabel {
+            font-size: 1.1rem;
+        }
+ 
+        #uploadBtn {
+            margin-top: 1.5rem;
+        }
+    </style>
 </head>
 <body>
-    <br>
-    <h1>Max file size: <span id="maxFileSize">...</span></h1>
-    <br>
-    <input type="file" id="fileInput">
-    <br>
-    <br>
-    <button id="uploadBtn" onclick="upload()" disabled>Upload</button>
-    <p id="result"></p>
+    <div class="upload-area">
+        <h1 id="title">Curier 🚚</h1>
+        <p class="label" id="maxFileSizeLabel">Max file size: <span id="maxFileSize">...</span></p>
+ 
+        <label class="file-label" for="fileInput">[ Choose a file ]</label>
+        <input type="file" id="fileInput">
+        <span id="fileName" class="label">No file selected</span>
+ 
+        <button id="uploadBtn" onclick="upload()" disabled>Upload</button>
+ 
+        <div id="result">
+            <p class="label">File uploaded successfully</p>
+            <button id="copyBtn" onclick="copyLink()">Click here to copy!</button>
+        </div>
+    </div>
 
     <script>
         let config = null
+        let uploadedUrl = null
 
         document.getElementById("fileInput").addEventListener("change", () => {
             const file = document.getElementById("fileInput").files[0]
             document.getElementById("uploadBtn").disabled = !file
+            document.getElementById("fileName").textContent = file ? file.name : "No file selected"
         })
 
         document.addEventListener("DOMContentLoaded", async () => {
@@ -68,22 +133,60 @@
             formData.append("file", file)
 
             try {
+                stopAfterCycle = false
+                const frames = Array(10).fill('.')
+                let pos = 9
+
+                const interval = setInterval(() => {
+                    if (stopAfterCycle) {
+                        frames[0] = '🏠'
+                    }
+                    frames[pos] = '🚚'
+                    document.getElementById('title').textContent = frames.join('')
+                    frames[pos] = '.'
+
+                    if (stopAfterCycle && pos === 1) {
+                        clearInterval(interval)
+                        return
+                    }
+
+                    pos = (pos - 1 + frames.length) % frames.length
+                }, 100)
+
                 const response = await fetch("/upload", {
                     method: "POST",
                     body: formData
-                });
+                })
+
+                stopAfterCycle = true
 
                 if (!response.ok) {
-                    document.getElementById("result").textContent = "Upload failed";
-                    return;
+                    alert("Upload failed")
+                    return
                 }
 
-                const data = await response.json();
+                const data = await response.json()
+                uploadedUrl = window.location.origin + data.path
 
-                document.getElementById("result").textContent = window.location.origin + data.path;
+                document.getElementById("result").style.display = "flex"
+                document.getElementById("copyBtn").style.display = "inline-block"
+
+                document.getElementById("uploadBtn").style.display = "none"
+                document.getElementById("fileInput").style.display = "none"
+                document.querySelector(".file-label").style.display = "none"
+                document.getElementById("fileName").style.display = "none"
             } catch (err) {
-                document.getElementById("result").textContent = "Upload failed";
+                alert("Upload failed")
             }
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(uploadedUrl).then(() => {
+                const btn = document.getElementById("copyBtn")
+                const original = btn.textContent
+                btn.textContent = "Copied!"
+                setTimeout(() => btn.textContent = original, 2000)
+            })
         }
     </script>
 </body>

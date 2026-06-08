@@ -1,5 +1,8 @@
 # curier 🚚
 
+<img src="media/front-page.png" width="600">
+<img src="media/share-page.png" width="600">
+
 A small Go server for sharing files across the internet.
 
 ## How to setup
@@ -9,17 +12,14 @@ A small Go server for sharing files across the internet.
 You can download the Dockerfile and build the image yourself, or simply pull it from the repo:
 ```bash
 docker pull ghcr.io/adipeterca/curier:latest
-docker run -p 39800:39800 ghcr.io/adipeterca/curier:latest
+docker run -p 39800:39800 \
+-v ./uploads/:/uploads \
+ghcr.io/adipeterca/curier:latest
 ```
 
-### Linux
+### Linux & Windows
 
-If you want to use a precompiled binary, please refer to the [Release](https://github.com/adipeterca/curier/releases) section.
-
-### Windows
-
-Because not many servers run Windows, the support I can provide for this platform is limited.
-You can download a precompiled binary from the [Release](https://github.com/adipeterca/curier/releases) section or use a Docker container.
+Please refer to the [Release](https://github.com/adipeterca/curier/releases) section.
 
 ## Configuration
 
