@@ -9,7 +9,9 @@ A small Go server for sharing files across the internet.
 You can download the Dockerfile and build the image yourself, or simply pull it from the repo:
 ```bash
 docker pull ghcr.io/adipeterca/curier:latest
-docker run -p 39800:39800 ghcr.io/adipeterca/curier:latest
+docker run -p 39800:39800 \
+-v ./uploads/:/uploads \
+ghcr.io/adipeterca/curier:latest
 ```
 
 ### Linux

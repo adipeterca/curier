@@ -26,7 +26,7 @@ func main() {
 	mux.HandleFunc("POST /upload", uploadHandler)
 
 	var listenAddress = fmt.Sprintf("%s:%s", host, port)
-	log.Printf("Starting and listening on http://%s ...\n", listenAddress)
+	log.Printf("Starting and listening on %s ...\n", listenAddress)
 
 	startCleanup()
 
@@ -97,7 +97,7 @@ func parseEnvVars() {
 	for ext := range allowedFileExtensions {
 		exts += fmt.Sprintf("\t\t\t%s\n", ext)
 	}
-	fullConfig += fmt.Sprintf("allowedFileExtensions:\n%s", exts)
+	fullConfig += fmt.Sprintf("allowedFileExtensions: %s", exts)
 
 	log.Println(fullConfig)
 }
