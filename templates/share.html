@@ -5,6 +5,78 @@
     <link rel="stylesheet" href="/static/style.css">
     <title>Curier 🚚</title>
 
+    <style>
+        body {
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .share-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            gap: 1.5rem;
+        }
+
+        .info-panel {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow);
+            min-width: 340px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid var(--bg3);
+            font-size: 0.9rem;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-key {
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .info-value {
+            color: #ffffff;
+            text-align: right;
+            word-break: break-all;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .footer a:hover {
+            border-color: var(--accent);
+        }
+    </style>
+
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const uploadDate = document.getElementById("uploadedAt")
@@ -35,24 +107,39 @@
             }
 
             fileSize.textContent = displaySize.toFixed(1) + " " + unit
-        
         })
     </script>
 </head>
 <body>
-    <h1>File name: {{.OriginalFilename}}</h1>
-    <p>Size: <span id="fileSize" data-bytes="{{.FileSize}}"></span></p>
-    <br>
-    <p>It was uploaded at <span id="uploadedAt" data-utc="{{.UploadedAt.UTC.Unix}}"></span></p>
-    <p>Expires at <span id="expiresAt" data-utc="{{.ExpiresAt.UTC.Unix}}"></span></p>
-    <br>
-    <br>
-    <a href="/download/{{.ID}}">
-        <button>Download now</button>
-    </a>
-    <br>
-    <br>
-    <p>You want to share a file too?</p>
-    <p><a href="/">Go to the homepage</a></p>
+    <div class="share-area">
+        <h1>The curier 🚚 has arrived!</h1>
+
+        <div class="info-panel">
+            <div class="info-row">
+                <span class="info-key">File name</span>
+                <span class="info-value">{{.OriginalFilename}}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-key">File size</span>
+                <span class="info-value" id="fileSize" data-bytes="{{.FileSize}}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-key">Uploaded at</span>
+                <span class="info-value" id="uploadedAt" data-utc="{{.UploadedAt.UTC.Unix}}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-key">Expires at</span>
+                <span class="info-value" id="expiresAt" data-utc="{{.ExpiresAt.UTC.Unix}}"></span>
+            </div>
+        </div>
+
+        <a href="/download/{{.ID}}">
+            <button>Download now</button>
+        </a>
+    </div>
+
+    <div class="footer">
+        Want to share a file too? <a href="/">Go to the homepage</a>
+    </div>
 </body>
 </html>
