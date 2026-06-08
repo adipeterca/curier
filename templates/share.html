@@ -4,11 +4,46 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="/static/style.css">
     <title>Curier 🚚</title>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const uploadDate = document.getElementById("uploadedAt")
+            let date = new Date(parseInt(uploadDate.dataset.utc) * 1000)
+            uploadDate.textContent = date.toLocaleString()
+
+            const expireDate = document.getElementById("expiresAt")
+            date = new Date(parseInt(expireDate.dataset.utc) * 1000)
+            expireDate.textContent = date.toLocaleString()
+
+            const fileSize = document.getElementById("fileSize")
+            const bytes = parseInt(fileSize.dataset.bytes)
+
+            let unit, displaySize
+            if (bytes < 1024) {
+                unit = "bytes"
+                displaySize = bytes
+            } else if (bytes < 1024 * 1024) {
+                unit = "KB"
+                displaySize = bytes / 1024
+            } else if (bytes < 1024 * 1024 * 1024) {
+                unit = "MB"
+                displaySize = bytes / 1024 / 1024
+            } else {
+                unit = "GB"
+                displaySize = bytes / 1024 / 1024 / 1024
+            }
+
+            fileSize.textContent = displaySize.toFixed(1) + " " + unit
+        
+        })
+    </script>
 </head>
 <body>
     <h1>File name: {{.OriginalFilename}}</h1>
+    <p>Size: <span id="fileSize" data-bytes="{{.FileSize}}"></span></p>
     <br>
-    <p>It was uploaded at {{.UploadedAt.Format "2006-01-02 15:04:05"}}</p>
+    <p>It was uploaded at <span id="uploadedAt" data-utc="{{.UploadedAt.UTC.Unix}}"></span></p>
+    <p>Expires at <span id="expiresAt" data-utc="{{.ExpiresAt.UTC.Unix}}"></span></p>
     <br>
     <br>
     <a href="/download/{{.ID}}">

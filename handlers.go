@@ -88,6 +88,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		OriginalFilename: fileName,
 		UploadedAt:       time.Now(),
 		UploaderIP:       remoteAddr,
+		FileSize:         header.Size,
 	}
 
 	metaBytes, err := json.Marshal(meta)
@@ -178,8 +179,9 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	shareData := ShareData{
-		FileMeta: *meta,
-		ID:       id,
+		FileMeta:  *meta,
+		ID:        id,
+		ExpiresAt: meta.UploadedAt.Add(time.Duration(fileRetentionTime) * time.Hour),
 	}
 
 	w.Header().Set("Content-Type", "text/html")
