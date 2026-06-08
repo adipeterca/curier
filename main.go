@@ -87,7 +87,7 @@ func parseEnvVars() {
 		}
 	}
 
-	fullConfig := "\n\n  --- Environment variables ---\n"
+	fullConfig := "  --- Environment variables ---\n"
 	fullConfig += fmt.Sprintf("storagePath : %s\n", storagePath)
 	fullConfig += fmt.Sprintf("host : %s\n", host)
 	fullConfig += fmt.Sprintf("port : %s\n", port)
