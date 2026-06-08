@@ -12,6 +12,8 @@ import (
 
 func main() {
 
+	log.Printf("Starting curier %s\n", version)
+
 	parseEnvVars()
 	parseFS()
 
