@@ -13,6 +13,9 @@ var templateFiles embed.FS
 
 var shareTemplate *template.Template
 
+// Will be updated by ldflags
+var version = "dev"
+
 // All variables can be overwritten by using environment variables.
 // All env vars need to start with `CURIER_` followed by the variable name in uppercase, each word separated with an underscore.
 //

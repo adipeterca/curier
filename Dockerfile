@@ -11,7 +11,8 @@ COPY static/ ./static/
 COPY templates/ ./templates/
 COPY *.go ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o curier .
+ARG VERSION=dev
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-X main.version=${VERSION}" -o curier .
 
 FROM scratch
 
