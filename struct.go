@@ -13,7 +13,6 @@ type ShareData struct {
 	FileMeta
 	ID        string
 	ExpiresAt time.Time
-	FileSize  int64
 }
 
 type Config struct {

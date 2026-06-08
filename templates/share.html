@@ -9,14 +9,17 @@
         document.addEventListener("DOMContentLoaded", () => {
             const uploadDate = document.getElementById("uploadedAt")
             let date = new Date(parseInt(uploadDate.dataset.utc) * 1000)
-            uploadDate.textContent = date.toLocaleString()
+            uploadDate.textContent = date.toLocaleString(undefined, { hour12: false })
 
             const expireDate = document.getElementById("expiresAt")
             date = new Date(parseInt(expireDate.dataset.utc) * 1000)
-            expireDate.textContent = date.toLocaleString()
+            expireDate.textContent = date.toLocaleString(undefined, { hour12: false })
 
             const fileSize = document.getElementById("fileSize")
             const bytes = parseInt(fileSize.dataset.bytes)
+
+            console.log("[debug] received fileSize.dataset.bytes = " + fileSize.dataset.bytes)
+            console.log("[debug] and converted it to " + bytes)
 
             let unit = "unset"
             let displaySize = -1
