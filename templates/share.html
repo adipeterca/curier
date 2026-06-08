@@ -18,9 +18,6 @@
             const fileSize = document.getElementById("fileSize")
             const bytes = parseInt(fileSize.dataset.bytes)
 
-            console.log("[debug] received fileSize.dataset.bytes = " + fileSize.dataset.bytes)
-            console.log("[debug] and converted it to " + bytes)
-
             let unit = "unset"
             let displaySize = -1
             if (bytes < 1024) {
